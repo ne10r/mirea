@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+build/
+dist/
+*.egg-info/
+.venv/
+venv/
+.DS_Store
+.idea/
+.vscode/
+ИКБО-10-25.pdf
