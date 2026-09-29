@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import getpass
+from pathlib import Path
 import socket
 from typing import TextIO
 
@@ -63,6 +64,40 @@ def execute_line(line: str) -> ExecutionResult:
     if command is None:
         return ExecutionResult()
     return execute_command(command)
+
+
+def run_startup_script(
+    script_path: str | Path,
+    output: TextIO,
+    prompt_factory=make_prompt,
+) -> int:
+    """Выполняет команды скрипта, пропуская строки с ошибками."""
+
+    path = Path(script_path)
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError as error:
+        print(f"Ошибка чтения стартового скрипта: {error}", file=output)
+        return 1
+
+    for line_number, line in enumerate(lines, start=1):
+        if not line.strip():
+            continue
+
+        print(f"{prompt_factory()} {line}", file=output)
+        try:
+            result = execute_line(line)
+        except ExitRequested:
+            print("Сеанс завершён.", file=output)
+            return 0
+        except (CommandError, CommandParseError) as error:
+            print(f"Ошибка в строке {line_number}: {error}", file=output)
+            continue
+
+        if result.output:
+            print(result.output, file=output)
+
+    return 0
 
 
 def run_interactive(

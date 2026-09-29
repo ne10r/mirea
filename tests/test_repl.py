@@ -1,4 +1,6 @@
 from io import StringIO
+from pathlib import Path
+import tempfile
 import unittest
 
 from shell_emulator.repl import (
@@ -8,6 +10,7 @@ from shell_emulator.repl import (
     execute_line,
     make_prompt,
     run_interactive,
+    run_startup_script,
 )
 from shell_emulator.parser import ParsedCommand
 
@@ -49,3 +52,29 @@ class ReplTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("user@host:~$ ls", output.getvalue())
         self.assertIn("ls", output.getvalue())
+
+    def test_startup_script_skips_errors(self):
+        output = StringIO()
+        with tempfile.TemporaryDirectory() as directory:
+            script = Path(directory) / "startup.txt"
+            script.write_text("ls\nunknown\ncd \"docs\"\n", encoding="utf-8")
+
+            code = run_startup_script(
+                script,
+                output,
+                prompt_factory=lambda: "user@host:~$",
+            )
+
+        text = output.getvalue()
+        self.assertEqual(code, 0)
+        self.assertIn("ls", text)
+        self.assertIn("Ошибка в строке 2", text)
+        self.assertIn("cd docs", text)
+
+    def test_missing_startup_script_returns_error(self):
+        output = StringIO()
+
+        code = run_startup_script("missing-startup.txt", output)
+
+        self.assertEqual(code, 1)
+        self.assertIn("Ошибка чтения стартового скрипта", output.getvalue())

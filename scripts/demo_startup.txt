@@ -1,0 +1,5 @@
+ls
+cd "demo folder"
+unknown-command
+ls "folder with spaces"
+exit
