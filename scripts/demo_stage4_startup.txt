@@ -1,0 +1,12 @@
+pwd
+ls
+cd "home"
+pwd
+ls
+clear
+cd missing
+pwd extra
+unknown-command
+cd /
+pwd
+exit

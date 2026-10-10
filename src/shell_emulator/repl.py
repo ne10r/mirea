@@ -56,6 +56,18 @@ def execute_command(
             raise CommandError("VFS не подключена")
         return ExecutionResult(vfs.info())
 
+    if command.name == "clear":
+        if command.args:
+            raise CommandError("команда clear не принимает аргументы")
+        return ExecutionResult("\033[2J\033[H")
+
+    if command.name == "pwd":
+        if command.args:
+            raise CommandError("команда pwd не принимает аргументы")
+        if vfs is None:
+            raise CommandError("VFS не подключена")
+        return ExecutionResult(str(vfs.current_path))
+
     if command.name in {"ls", "cd"} and vfs is None:
         arguments = " ".join(command.args)
         suffix = f" {arguments}" if arguments else ""

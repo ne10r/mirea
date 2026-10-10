@@ -105,3 +105,17 @@ class ReplTests(unittest.TestCase):
 
         with self.assertRaisesRegex(CommandError, "путь не найден"):
             execute_line("cd missing", vfs)
+
+    def test_stage_four_commands(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "vfs.xml"
+            path.write_text('<vfs><directory name="docs" /></vfs>', encoding="utf-8")
+            vfs = VirtualFileSystem.from_xml(path)
+
+        self.assertEqual(execute_line("pwd", vfs).output, "/")
+        self.assertEqual(execute_line("cd docs", vfs).output, "Текущий каталог: /docs")
+        self.assertEqual(execute_line("pwd", vfs).output, "/docs")
+        self.assertEqual(execute_line("clear").output, "\033[2J\033[H")
+
+        with self.assertRaisesRegex(CommandError, "не принимает аргументы"):
+            execute_line("pwd extra", vfs)
