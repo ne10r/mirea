@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vfs name="files">
+  <file name="readme.txt">Файлы VFS загружаются в память.</file>
+  <file name="data.bin" encoding="base64">AAECAwQF</file>
+  <directory name="docs">
+    <file name="guide.txt">Документация проекта.</file>
+    <file name="empty.txt" />
+  </directory>
+</vfs>

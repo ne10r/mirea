@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vfs name="nested">
+  <directory name="home">
+    <directory name="student">
+      <directory name="projects">
+        <file name="notes.txt">Три уровня вложенности каталогов.</file>
+      </directory>
+    </directory>
+  </directory>
+  <directory name="tmp" />
+</vfs>

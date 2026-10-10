@@ -13,6 +13,7 @@ from shell_emulator.repl import (
     run_startup_script,
 )
 from shell_emulator.parser import ParsedCommand
+from shell_emulator.vfs import VirtualFileSystem
 
 
 class ReplTests(unittest.TestCase):
@@ -78,3 +79,29 @@ class ReplTests(unittest.TestCase):
 
         self.assertEqual(code, 1)
         self.assertIn("Ошибка чтения стартового скрипта", output.getvalue())
+
+    def test_ls_and_cd_use_connected_vfs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "vfs.xml"
+            path.write_text(
+                '<vfs name="demo"><directory name="docs">'
+                '<file name="guide.txt">text</file></directory></vfs>',
+                encoding="utf-8",
+            )
+            vfs = VirtualFileSystem.from_xml(path)
+
+        self.assertEqual(execute_line("ls", vfs).output, "docs/")
+        self.assertEqual(
+            execute_line("cd docs", vfs).output,
+            "Текущий каталог: /docs",
+        )
+        self.assertEqual(execute_line("ls", vfs).output, "guide.txt")
+
+    def test_vfs_command_reports_path_errors(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "vfs.xml"
+            path.write_text('<vfs><directory name="docs" /></vfs>', encoding="utf-8")
+            vfs = VirtualFileSystem.from_xml(path)
+
+        with self.assertRaisesRegex(CommandError, "путь не найден"):
+            execute_line("cd missing", vfs)

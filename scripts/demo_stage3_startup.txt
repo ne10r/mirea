@@ -1,0 +1,12 @@
+vfs-info
+ls
+cd home
+ls
+cd "student/projects"
+ls
+cd /home
+cd missing
+unknown-command
+cd /
+ls
+exit
