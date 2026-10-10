@@ -20,6 +20,8 @@ class VfsNode:
     name: str
     is_directory: bool
     content: bytes = b""
+    owner: str = "root"
+    group: str = "root"
     children: dict[str, "VfsNode"] = field(default_factory=dict)
 
     def add_child(self, child: "VfsNode") -> None:
@@ -79,7 +81,12 @@ class VirtualFileSystem:
             raise VfsLoadError(f"недопустимое имя узла VFS: {name}")
 
         if tag in {"directory", "dir", "folder"}:
-            node = VfsNode(name, is_directory=True)
+            node = VfsNode(
+                name,
+                is_directory=True,
+                owner=element.get("owner", "root"),
+                group=element.get("group", "root"),
+            )
             if (element.text or "").strip():
                 raise VfsLoadError(f"каталог содержит текстовые данные: {name}")
             for child_element in element:
@@ -103,7 +110,13 @@ class VirtualFileSystem:
 
         if list(element):
             raise VfsLoadError(f"файл содержит вложенные элементы: {name}")
-        return VfsNode(name, is_directory=False, content=content)
+        return VfsNode(
+            name,
+            is_directory=False,
+            content=content,
+            owner=element.get("owner", "root"),
+            group=element.get("group", "root"),
+        )
 
     def _resolve(self, path: str = ".") -> VfsNode:
         """Находит узел по POSIX-пути относительно текущего каталога."""
@@ -178,6 +191,27 @@ class VirtualFileSystem:
             raise VfsLoadError(f"не является каталогом: {path}")
         self.current_path = self.path_for(node)
         return self.current_path
+
+    def change_owner(self, path: str, owner: str, group: str | None = None) -> str:
+        """Меняет владельца узла только в объектной модели VFS."""
+
+        node = self._resolve(path)
+        if not owner or any(char.isspace() for char in owner):
+            raise VfsLoadError("имя владельца не может быть пустым или содержать пробелы")
+        if group is not None and (
+            not group or any(char.isspace() for char in group)
+        ):
+            raise VfsLoadError("имя группы не может быть пустым или содержать пробелы")
+        node.owner = owner
+        if group is not None:
+            node.group = group
+        return self.owner_for(path)
+
+    def owner_for(self, path: str = ".") -> str:
+        """Возвращает владельца и группу узла по пути."""
+
+        node = self._resolve(path)
+        return f"{node.owner}:{node.group}"
 
     def info(self) -> str:
         """Возвращает краткую информацию о подключённой VFS."""

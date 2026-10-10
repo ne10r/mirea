@@ -68,6 +68,19 @@ def execute_command(
             raise CommandError("VFS не подключена")
         return ExecutionResult(str(vfs.current_path))
 
+    if command.name == "chown":
+        if len(command.args) != 2:
+            raise CommandError("использование: chown ВЛАДЕЛЕЦ[:ГРУППА] ПУТЬ")
+        if vfs is None:
+            raise CommandError("VFS не подключена")
+        identity, path = command.args
+        owner, separator, group = identity.partition(":")
+        try:
+            changed_owner = vfs.change_owner(path, owner, group if separator else None)
+        except VfsLoadError as error:
+            raise CommandError(str(error)) from error
+        return ExecutionResult(f"Владелец {path}: {changed_owner}")
+
     if command.name in {"ls", "cd"} and vfs is None:
         arguments = " ".join(command.args)
         suffix = f" {arguments}" if arguments else ""

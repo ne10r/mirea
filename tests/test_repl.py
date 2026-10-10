@@ -119,3 +119,32 @@ class ReplTests(unittest.TestCase):
 
         with self.assertRaisesRegex(CommandError, "не принимает аргументы"):
             execute_line("pwd extra", vfs)
+
+    def test_chown_changes_only_in_memory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "vfs.xml"
+            path.write_text(
+                '<vfs><file name="notes.txt" owner="root" /></vfs>',
+                encoding="utf-8",
+            )
+            vfs = VirtualFileSystem.from_xml(path)
+            self.assertEqual(
+                execute_line("chown alice:staff notes.txt", vfs).output,
+                "Владелец notes.txt: alice:staff",
+            )
+            self.assertEqual(vfs.owner_for("notes.txt"), "alice:staff")
+            self.assertEqual(
+                path.read_text(encoding="utf-8"),
+                '<vfs><file name="notes.txt" owner="root" /></vfs>',
+            )
+
+    def test_chown_reports_invalid_arguments(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "vfs.xml"
+            path.write_text('<vfs><file name="notes.txt" /></vfs>', encoding="utf-8")
+            vfs = VirtualFileSystem.from_xml(path)
+
+        with self.assertRaisesRegex(CommandError, "использование"):
+            execute_line("chown alice", vfs)
+        with self.assertRaisesRegex(CommandError, "имя группы"):
+            execute_line("chown alice: notes.txt", vfs)

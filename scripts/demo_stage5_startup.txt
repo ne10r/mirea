@@ -1,0 +1,7 @@
+vfs-info
+chown alice /home
+chown bob:developers "home/student/projects/notes.txt"
+chown
+chown root /missing
+chown :staff /tmp
+exit
