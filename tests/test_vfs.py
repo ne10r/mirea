@@ -39,13 +39,19 @@ class VirtualFileSystemTests(unittest.TestCase):
     def test_rejects_duplicate_names(self):
         xml = '<vfs><file name="same" /><file name="same" /></vfs>'
         with tempfile.TemporaryDirectory() as directory:
-            with self.assertRaisesRegex(VfsLoadError, "дублирующееся имя"):
+            with self.assertRaisesRegex(
+                VfsLoadError,
+                "дублирующееся имя",
+            ):
                 VirtualFileSystem.from_xml(self.write_xml(directory, xml))
 
     def test_does_not_allow_leaving_root(self):
         with tempfile.TemporaryDirectory() as directory:
             vfs = VirtualFileSystem.from_xml(
-                self.write_xml(directory, '<vfs><directory name="docs" /></vfs>')
+                self.write_xml(
+                    directory,
+                    '<vfs><directory name="docs" /></vfs>',
+                )
             )
 
         self.assertEqual(vfs.change_directory(".."), Path("/"))
