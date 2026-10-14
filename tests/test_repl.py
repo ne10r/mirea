@@ -100,7 +100,10 @@ class ReplTests(unittest.TestCase):
     def test_vfs_command_reports_path_errors(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "vfs.xml"
-            path.write_text('<vfs><directory name="docs" /></vfs>', encoding="utf-8")
+            path.write_text(
+                '<vfs><directory name="docs" /></vfs>',
+                encoding="utf-8",
+            )
             vfs = VirtualFileSystem.from_xml(path)
 
         with self.assertRaisesRegex(CommandError, "путь не найден"):
@@ -109,11 +112,17 @@ class ReplTests(unittest.TestCase):
     def test_stage_four_commands(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "vfs.xml"
-            path.write_text('<vfs><directory name="docs" /></vfs>', encoding="utf-8")
+            path.write_text(
+                '<vfs><directory name="docs" /></vfs>',
+                encoding="utf-8",
+            )
             vfs = VirtualFileSystem.from_xml(path)
 
         self.assertEqual(execute_line("pwd", vfs).output, "/")
-        self.assertEqual(execute_line("cd docs", vfs).output, "Текущий каталог: /docs")
+        self.assertEqual(
+            execute_line("cd docs", vfs).output,
+            "Текущий каталог: /docs",
+        )
         self.assertEqual(execute_line("pwd", vfs).output, "/docs")
         self.assertEqual(execute_line("clear").output, "\033[2J\033[H")
 
@@ -141,7 +150,10 @@ class ReplTests(unittest.TestCase):
     def test_chown_reports_invalid_arguments(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "vfs.xml"
-            path.write_text('<vfs><file name="notes.txt" /></vfs>', encoding="utf-8")
+            path.write_text(
+                '<vfs><file name="notes.txt" /></vfs>',
+                encoding="utf-8",
+            )
             vfs = VirtualFileSystem.from_xml(path)
 
         with self.assertRaisesRegex(CommandError, "использование"):

@@ -12,6 +12,10 @@ from .parser import CommandParseError, ParsedCommand, parse_command
 from .vfs import VfsLoadError, VirtualFileSystem
 
 
+MAX_PATH_ARGUMENTS = 1
+CHOWN_ARGUMENT_COUNT = 2
+
+
 class CommandError(RuntimeError):
     """Ошибка выполнения команды."""
 
@@ -35,76 +39,135 @@ def make_prompt() -> str:
     return f"{username}@{hostname}:~$"
 
 
+def _reject_arguments(command: ParsedCommand) -> None:
+    if command.args:
+        raise CommandError(
+            f"команда {command.name} не принимает аргументы"
+        )
+
+
+def _require_vfs(vfs: VirtualFileSystem | None) -> VirtualFileSystem:
+    if vfs is None:
+        raise CommandError("VFS не подключена")
+    return vfs
+
+
+def _execute_exit(
+    command: ParsedCommand,
+    vfs: VirtualFileSystem | None,
+) -> ExecutionResult:
+    _reject_arguments(command)
+    raise ExitRequested
+
+
+def _execute_vfs_info(
+    command: ParsedCommand,
+    vfs: VirtualFileSystem | None,
+) -> ExecutionResult:
+    _reject_arguments(command)
+    return ExecutionResult(_require_vfs(vfs).info())
+
+
+def _execute_clear(
+    command: ParsedCommand,
+    vfs: VirtualFileSystem | None,
+) -> ExecutionResult:
+    _reject_arguments(command)
+    return ExecutionResult("\033[2J\033[H")
+
+
+def _execute_pwd(
+    command: ParsedCommand,
+    vfs: VirtualFileSystem | None,
+) -> ExecutionResult:
+    _reject_arguments(command)
+    return ExecutionResult(str(_require_vfs(vfs).current_path))
+
+
+def _execute_chown(
+    command: ParsedCommand,
+    vfs: VirtualFileSystem | None,
+) -> ExecutionResult:
+    if len(command.args) != CHOWN_ARGUMENT_COUNT:
+        raise CommandError(
+            "использование: chown ВЛАДЕЛЕЦ[:ГРУППА] ПУТЬ"
+        )
+
+    connected_vfs = _require_vfs(vfs)
+    identity, path = command.args
+    owner, separator, group = identity.partition(":")
+    try:
+        changed_owner = connected_vfs.change_owner(
+            path,
+            owner,
+            group if separator else None,
+        )
+    except VfsLoadError as error:
+        raise CommandError(str(error)) from error
+    return ExecutionResult(f"Владелец {path}: {changed_owner}")
+
+
+def _stub_command(command: ParsedCommand) -> ExecutionResult:
+    arguments = " ".join(command.args)
+    suffix = f" {arguments}" if arguments else ""
+    return ExecutionResult(f"{command.name}{suffix}")
+
+
+def _path_argument(command: ParsedCommand) -> str:
+    if len(command.args) > MAX_PATH_ARGUMENTS:
+        raise CommandError(
+            f"команда {command.name} принимает "
+            "не более одного пути"
+        )
+    return command.args[0] if command.args else "."
+
+
+def _execute_ls(
+    command: ParsedCommand,
+    vfs: VirtualFileSystem | None,
+) -> ExecutionResult:
+    path = _path_argument(command)
+    try:
+        entries = _require_vfs(vfs).list_directory(path)
+    except VfsLoadError as error:
+        raise CommandError(str(error)) from error
+    return ExecutionResult("\n".join(entries) or "(пусто)")
+
+
+def _execute_cd(
+    command: ParsedCommand,
+    vfs: VirtualFileSystem | None,
+) -> ExecutionResult:
+    path = _path_argument(command)
+    try:
+        new_path = _require_vfs(vfs).change_directory(path)
+    except VfsLoadError as error:
+        raise CommandError(str(error)) from error
+    return ExecutionResult(f"Текущий каталог: {new_path}")
+
+
 def execute_command(
     command: ParsedCommand,
     vfs: VirtualFileSystem | None = None,
 ) -> ExecutionResult:
-    """Выполняет команды этапов 1–3.
-
-    Без подключённой VFS ``ls`` и ``cd`` сохраняют поведение заглушек этапа 1.
-    """
-
-    if command.name == "exit":
-        if command.args:
-            raise CommandError("команда exit не принимает аргументы")
-        raise ExitRequested
-
-    if command.name == "vfs-info":
-        if command.args:
-            raise CommandError("команда vfs-info не принимает аргументы")
-        if vfs is None:
-            raise CommandError("VFS не подключена")
-        return ExecutionResult(vfs.info())
-
-    if command.name == "clear":
-        if command.args:
-            raise CommandError("команда clear не принимает аргументы")
-        return ExecutionResult("\033[2J\033[H")
-
-    if command.name == "pwd":
-        if command.args:
-            raise CommandError("команда pwd не принимает аргументы")
-        if vfs is None:
-            raise CommandError("VFS не подключена")
-        return ExecutionResult(str(vfs.current_path))
-
-    if command.name == "chown":
-        if len(command.args) != 2:
-            raise CommandError("использование: chown ВЛАДЕЛЕЦ[:ГРУППА] ПУТЬ")
-        if vfs is None:
-            raise CommandError("VFS не подключена")
-        identity, path = command.args
-        owner, separator, group = identity.partition(":")
-        try:
-            changed_owner = vfs.change_owner(path, owner, group if separator else None)
-        except VfsLoadError as error:
-            raise CommandError(str(error)) from error
-        return ExecutionResult(f"Владелец {path}: {changed_owner}")
+    """Выполняет команды этапов 1–5."""
 
     if command.name in {"ls", "cd"} and vfs is None:
-        arguments = " ".join(command.args)
-        suffix = f" {arguments}" if arguments else ""
-        return ExecutionResult(f"{command.name}{suffix}")
+        return _stub_command(command)
 
-    if command.name == "ls":
-        if len(command.args) > 1:
-            raise CommandError("команда ls принимает не более одного пути")
-        try:
-            entries = vfs.list_directory(command.args[0] if command.args else ".")
-        except VfsLoadError as error:
-            raise CommandError(str(error)) from error
-        return ExecutionResult("\n".join(entries) or "(пусто)")
-
-    if command.name == "cd":
-        if len(command.args) > 1:
-            raise CommandError("команда cd принимает не более одного пути")
-        try:
-            path = vfs.change_directory(command.args[0] if command.args else ".")
-        except VfsLoadError as error:
-            raise CommandError(str(error)) from error
-        return ExecutionResult(f"Текущий каталог: {path}")
-
-    raise CommandError(f"неизвестная команда: {command.name}")
+    handlers = {
+        "exit": _execute_exit,
+        "vfs-info": _execute_vfs_info,
+        "clear": _execute_clear,
+        "pwd": _execute_pwd,
+        "chown": _execute_chown,
+        "ls": _execute_ls,
+        "cd": _execute_cd,
+    }
+    handler = handlers.get(command.name)
+    if handler is None:
+        raise CommandError(f"неизвестная команда: {command.name}")
+    return handler(command, vfs)
 
 
 def execute_line(
